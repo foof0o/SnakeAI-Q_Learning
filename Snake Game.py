@@ -33,6 +33,8 @@ frame_size_y = 240
 #Mode Selection
 game_mode = 1 # 1 = normal; 2 = 2 snake training
 mode_selected = False
+astar_mode = False
+headless = False
 
 # Q-Learning reward structure
 got_food = 10
@@ -129,12 +131,13 @@ data_episode2 = []
 data_reward2 = []
 data_length2 = []
 
-def start_menu():
-    global mode_selected, game_mode
-    font = pygame.font.SysFont('times new roman', 20)
-    line1 = font.render('Press 1 to train 1 snake', True, white)
-    line2 = font.render('Press 2 to train 2 snake', True, white)
-    line3 = font.render('Press 3 to train 1 snake with obstacles', True, white)
+font = pygame.font.SysFont('times new roman', 20)
+
+def astar_menu():
+    global astar_mode, headless, font
+    line1 = font.render('Press 1 to train with Q Learning', True, white)
+    line2 = font.render('Press 2 to train with A*', True, white)
+    line3 = font.render('Press 3 to run in headless', True, white)
 
     line1_x = (frame_size_x - line1.get_width()) // 2
     line1_y = (frame_size_y // 2) - 60
@@ -142,6 +145,53 @@ def start_menu():
     line2_y = (frame_size_y // 2) - 20
     line3_x = (frame_size_x - line3.get_width()) // 2
     line3_y = (frame_size_y // 2) + 20
+
+    astar_or_qlearning = False
+    while not astar_or_qlearning:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:  # when the user presses a key and releases it
+                if event.key == pygame.K_1:  # checks if the key was 1 or 2 and triggers the correct game mode
+                    astar_mode = False
+                    astar_or_qlearning = True
+                elif event.key == pygame.K_2:
+                    astar_mode = True
+                    astar_or_qlearning = True
+                elif event.key == pygame.K_3:
+                    if not headless:
+                        headless = True
+                        line3 = font.render('Press 3 to run not in headless', True, white)
+                    else:
+                        headless = False
+                        line3 = font.render('Press 3 to run in headless', True, white)
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        # displays the text we wrote earlier
+        game_window.fill(black)
+        game_window.blit(line1, (line1_x, line1_y))
+        game_window.blit(line2, (line2_x, line2_y))
+        game_window.blit(line3, (line3_x, line3_y))
+        pygame.display.flip()
+
+def start_menu():
+    global mode_selected, game_mode, astar_mode, font
+    line1 = font.render('Press 1 to train 1 snake', True, white)
+    if astar_mode:
+        line2 = font.render('Press 2 to train A* vs A*', True, white)
+        line4 = font.render('Press 4 to train Q-Learning vs A*', True, white)
+    else:
+        line2 = font.render('Press 2 to train Q-Learning vs Q-Learning', True, white)
+        line4 = font.render('Press 4 to train A* vs Q-Learning', True, white)
+    line3 = font.render('Press 3 to train 1 snake with obstacles', True, white)
+
+    line1_x = (frame_size_x - line1.get_width()) // 2
+    line1_y = (frame_size_y // 2) - 70
+    line2_x = (frame_size_x - line2.get_width()) // 2
+    line2_y = (frame_size_y // 2) - 30
+    line3_x = (frame_size_x - line3.get_width()) // 2
+    line3_y = (frame_size_y // 2) + 10
+    line4_x = (frame_size_x - line4.get_width()) // 2
+    line4_y = (frame_size_y // 2) + 50
 
     while not mode_selected:
         for event in pygame.event.get():
@@ -155,11 +205,18 @@ def start_menu():
                 elif event.key == pygame.K_3:
                     game_mode = 3
                     mode_selected = True
+                elif event.key == pygame.K_4:
+                    game_mode = 4
+                    mode_selected = True
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
         #displays the text we wrote earlier
         game_window.fill(black)
         game_window.blit(line1, (line1_x, line1_y))
         game_window.blit(line2, (line2_x, line2_y))
         game_window.blit(line3, (line3_x, line3_y))
+        game_window.blit(line4, (line4_x, line4_y))
         pygame.display.flip()
 
 # Game Over
@@ -167,25 +224,32 @@ def game_over():
     global snake_pos, snake_body, food_pos, food_spawn, direction, score, epsilon, total_reward, episode_number, \
         game_length, game_mode, snake2_pos, snake2_body, direction2, epsilon2, episode_number2, score2, total_reward2, \
         astar_bias, astar_bias2, steps_since_food1, steps_since_food2, s1_obstacles
-    my_font = pygame.font.SysFont('times new roman', int(frame_size_x * 0.125))
-    game_over_surface = my_font.render('YOU DIED', True, red)
-    game_over_rect = game_over_surface.get_rect()
-    game_over_rect.midtop = (frame_size_x/2, frame_size_y/4)
-    game_window.fill(black)
-    game_window.blit(game_over_surface, game_over_rect)
-    show_score(0, red, 'times', 20)
-    pygame.display.flip()
-    #time.sleep(.01) #3->1
+
+    if not headless:
+        my_font = pygame.font.SysFont('times new roman', int(frame_size_x * 0.125))
+        game_over_surface = my_font.render('YOU DIED', True, red)
+        game_over_rect = game_over_surface.get_rect()
+        game_over_rect.midtop = (frame_size_x/2, frame_size_y/4)
+        game_window.fill(black)
+        game_window.blit(game_over_surface, game_over_rect)
+        show_score(0, red, 'times', 20)
+        pygame.display.flip()
+        #time.sleep(.01) #3->1
     # change the game over so it just automatically restarts after game over instead of quitting
     snake_pos = [100, 50]
     snake_body = [[100, 50], [100 - 10, 50], [100 - (2 * 10), 50]]
 
 
-    if game_mode == 1:
-        print(f"Agent died with a total reward of {total_reward:.1f} on episode {episode_number}")
-        # adjusts epsilon for the next round
-        epsilon = max(epsilon_min, epsilon * epsilon_decay)
-        astar_bias = max(astar_bias_min, astar_bias * astar_bias_decay)
+    if game_mode == 1 or game_mode == 3:
+        if episode_number2 % 100 == 0:
+            print(f"Agent died with a total reward of {total_reward:.1f} on episode {episode_number}")
+        if game_mode == 3:
+            # spawns the obstacles in a new spot every death
+            s1_obstacles = spawn_obstacles(frame_size_x, frame_size_y, snake_body)
+        if not astar_mode:
+            # adjusts epsilon for the next round
+            epsilon = max(epsilon_min, epsilon * epsilon_decay)
+            astar_bias = max(astar_bias_min, astar_bias * astar_bias_decay)
 
         data_score.append(score)
         data_reward.append(total_reward)
@@ -198,14 +262,16 @@ def game_over():
         # resets reward and increment episode
         total_reward = 0
         episode_number += 1
-    elif game_mode == 2:
-        print(f"Snake 2 Agent died with a total reward of {total_reward2:.1f} on episode {episode_number2}")
+    elif game_mode == 2 or game_mode == 4:
+        if episode_number2 % 100 == 0:
+            print(f"Snake 2 Agent died with a total reward of {total_reward2:.1f} on episode {episode_number2}")
         snake2_pos = [200, 50]
         snake2_body = [[200, 50], [200 + 10, 50], [200 + (2 * 10), 50]]
         direction2 = 'LEFT'
-        # adjusts epsilon for the next round
-        epsilon2 = max(epsilon_min, epsilon2 * epsilon_decay)
-        astar_bias2 = max(astar_bias_min, astar_bias2 * astar_bias_decay)
+        if not astar_mode:
+            # adjusts epsilon for the next round
+            epsilon2 = max(epsilon_min, epsilon2 * epsilon_decay)
+            astar_bias2 = max(astar_bias_min, astar_bias2 * astar_bias_decay)
 
         data_score2.append(score2)
         data_reward2.append(total_reward2)
@@ -219,25 +285,6 @@ def game_over():
         # resets reward and increment episode
         total_reward2 = 0
         episode_number2 += 1
-    elif game_mode == 3:
-        print(f"Snake Agent died with a total reward of {total_reward:.1f} on episode {episode_number}")
-        #spawns the obstacles in a new spot every death
-        s1_obstacles = spawn_obstacles(frame_size_x, frame_size_y, snake_body)
-        # adjusts epsilon for the next round
-        epsilon = max(epsilon_min, epsilon * epsilon_decay)
-        astar_bias = max(astar_bias_min, astar_bias * astar_bias_decay)
-
-        data_score.append(score)
-        data_reward.append(total_reward)
-        data_episode.append(episode_number)
-        data_length.append(game_length)
-
-        score = 0
-        steps_since_food1 = 0
-        game_length = 0
-        # resets reward and increment episode
-        total_reward = 0
-        episode_number += 1
     food_pos = [random.randrange(1, (frame_size_x // 10)) * 10, random.randrange(1, (frame_size_y // 10)) * 10]
     while food_pos in snake_body or food_pos in s1_obstacles or food_pos in snake2_body:
         food_pos = [random.randrange(1, (frame_size_x // 10)) * 10, random.randrange(1, (frame_size_y // 10)) * 10]
@@ -440,193 +487,373 @@ def move_snake(pos, direction):
 # method to save the q table data to the computer
 def save_data(filename="snake_save.json"):
     #global variables that are going to be saved
-    global q_table, epsilon, episode_number, data_score, data_episode, data_reward, data_length, astar_bias
-    if game_mode == 1:
-        q_table_serializable = {str(k): v for k, v in q_table.items()} # converts the q table into a string
-        #bundles all the data into one dictionary
-        save_bundle = {
-            "q_table": q_table_serializable,
-            "epsilon": epsilon,
-            "astar_bias": astar_bias,
-            "episode_number": episode_number,
-            "data_score": data_score,
-            "data_episode": data_episode,
-            "data_reward": data_reward,
-            "data_length": data_length,
-        }
-        #writes the data to the file
-        with open(filename, 'w') as f:
-            json.dump(save_bundle, f)
-        print(f"[+] Snake 1 data saved to {filename}")
+    global q_table, epsilon, episode_number, data_score, data_episode, data_reward, data_length, astar_bias, \
+        q2_table, epsilon2, episode_number2, data_score2, data_episode2, data_reward2, data_length2, astar_bias2
+    if not astar_mode:
+        if game_mode == 1:
+            q_table_serializable = {str(k): v for k, v in q_table.items()} # converts the q table into a string
+            #bundles all the data into one dictionary
+            save_bundle = {
+                "q_table": q_table_serializable,
+                "epsilon": epsilon,
+                "astar_bias": astar_bias,
+                "episode_number": episode_number,
+                "data_score": data_score,
+                "data_episode": data_episode,
+                "data_reward": data_reward,
+                "data_length": data_length,
+            }
+            #writes the data to the file
+            with open(filename, 'w') as f:
+                json.dump(save_bundle, f)
+            print(f"[+] Snake 1 data saved to {filename}")
 
-    elif game_mode == 2:
-        global q2_table, epsilon2, episode_number2, data_score2, data_episode2, data_reward2, data_length2, astar_bias2
-        q2_table_serializable = {str(k): v for k, v in q2_table.items()}
-        save_bundle2 = {
-            "q_table": q2_table_serializable,
-            "epsilon": epsilon2,
-            "astar_bias": astar_bias2,
-            "episode_number": episode_number2,
-            "data_score": data_score2,
-            "data_episode": data_episode2,
-            "data_reward": data_reward2,
-            "data_length": data_length2,
-        }
-        with open('snake2_save.json', 'w') as f:
-            json.dump(save_bundle2, f)
-        print(f"[+] Snake 2 data saved to snake2_save.json")
+        if game_mode == 2:
+            q2_table_serializable = {str(k): v for k, v in q2_table.items()}
+            save_bundle2 = {
+                "q_table": q2_table_serializable,
+                "epsilon": epsilon2,
+                "astar_bias": astar_bias2,
+                "episode_number": episode_number2,
+                "data_score": data_score2,
+                "data_episode": data_episode2,
+                "data_reward": data_reward2,
+                "data_length": data_length2,
+            }
+            with open('snake2_save.json', 'w') as f:
+                json.dump(save_bundle2, f)
+            print(f"[+] Snake 2 data saved to snake2_save.json")
 
-    elif game_mode == 3:
-        q3_table_serializable = {str(k): v for k, v in q_table.items()}  # converts the q table into a string
-        # bundles all the data into one dictionary
-        save_bundle = {
-            "q_table": q3_table_serializable,
-            "epsilon": epsilon,
-            "astar_bias": astar_bias,
-            "episode_number": episode_number,
-            "data_score": data_score,
-            "data_episode": data_episode,
-            "data_reward": data_reward,
-            "data_length": data_length,
-        }
-        # writes the data to the file
-        with open('snake3_save.json', 'w') as f:
-            json.dump(save_bundle, f)
-        print(f"[+] Snake 1 data saved to snake3_save.json")
+        if game_mode == 3:
+            q3_table_serializable = {str(k): v for k, v in q_table.items()}  # converts the q table into a string
+            # bundles all the data into one dictionary
+            save_bundle = {
+                "q_table": q3_table_serializable,
+                "epsilon": epsilon,
+                "astar_bias": astar_bias,
+                "episode_number": episode_number,
+                "data_score": data_score,
+                "data_episode": data_episode,
+                "data_reward": data_reward,
+                "data_length": data_length,
+            }
+            # writes the data to the file
+            with open('snake3_save.json', 'w') as f:
+                json.dump(save_bundle, f)
+            print(f"[+] Snake 3 data saved to snake3_save.json")
+
+        if game_mode == 4:
+            q2_table_serializable = {str(k): v for k, v in q2_table.items()}
+            save_bundle2 = {
+                "q_table": q2_table_serializable,
+                "epsilon": epsilon2,
+                "astar_bias": astar_bias2,
+                "episode_number": episode_number2,
+                "data_score": data_score2,
+                "data_episode": data_episode2,
+                "data_reward": data_reward2,
+                "data_length": data_length2,
+            }
+            with open('snake4_save.json', 'w') as f:
+                json.dump(save_bundle2, f)
+            print(f"[+] Snake 4 data saved to snake4_save.json")
+    else:
+        if game_mode == 1:
+            # bundles all the data into one dictionary
+            save_bundle = {
+                "episode_number": episode_number,
+                "data_score": data_score,
+                "data_episode": data_episode,
+                "data_reward": data_reward,
+                "data_length": data_length,
+            }
+            # writes the data to the file
+            with open("snake_save_astar.json", 'w') as f:
+                json.dump(save_bundle, f)
+            print(f"[+] Snake 1* data saved to snake_save_astar.json")
+
+        elif game_mode == 2:
+            save_bundle2 = {
+                "episode_number": episode_number2,
+                "data_score": data_score2,
+                "data_episode": data_episode2,
+                "data_reward": data_reward2,
+                "data_length": data_length2,
+            }
+            with open('snake2_save_astar.json', 'w') as f:
+                json.dump(save_bundle2, f)
+            print(f"[+] Snake 2* data saved to snake2_save_astar.json")
+
+        elif game_mode == 3:
+            # bundles all the data into one dictionary
+            save_bundle = {
+                "episode_number": episode_number,
+                "data_score": data_score,
+                "data_episode": data_episode,
+                "data_reward": data_reward,
+                "data_length": data_length,
+            }
+            # writes the data to the file
+            with open('snake3_save_astar.json', 'w') as f:
+                json.dump(save_bundle, f)
+            print(f"[+] Snake 3* data saved to snake3_save_astar.json")
+
+        elif game_mode == 4:
+            # bundles all the data into one dictionary
+            save_bundle = {
+                "episode_number": episode_number2,
+                "data_score": data_score2,
+                "data_episode": data_episode2,
+                "data_reward": data_reward2,
+                "data_length": data_length2,
+            }
+            # writes the data to the file
+            with open('snake4_save_astar.json', 'w') as f:
+                json.dump(save_bundle, f)
+            print(f"[+] Snake 4* data saved to snake3_save_astar.json")
 
 # method to load the q table from a local computer file
 def load_data(filename="snake_save.json"):
-    #load snake 1 data
     # global variables that are going to be loaded
-    global q_table, epsilon, episode_number, data_score, data_episode, data_reward, data_length, astar_bias
-    if game_mode == 1 or game_mode == 2:
-        #if a file doesn't exist
-        if not os.path.exists(filename):
-            print("[!] Save data does not exist")
-            return
-        with open(filename, 'r') as f: # reads the file and converts it back into a variable
-            save_bundle = json.load(f)
-        raw_q = save_bundle["q_table"] #pulls out the q table
-        for k, v in raw_q.items(): # loops through and saves the values for each state
-            parsed_key = ast.literal_eval(k)
-            q_table[parsed_key] = v
-        epsilon = save_bundle["epsilon"]
-        astar_bias = save_bundle["astar_bias"]
-        episode_number = save_bundle["episode_number"]
-        data_score = save_bundle["data_score"]
-        data_episode = save_bundle["data_episode"]
-        data_reward = save_bundle["data_reward"]
-        data_length = save_bundle["data_length"]
-        print('[+] Snake 1 data loaded')
+    global q_table, epsilon, episode_number, data_score, data_episode, data_reward, data_length, astar_bias, \
+        q2_table, epsilon2, episode_number2, data_score2, data_episode2, data_reward2, data_length2, astar_bias2
+    #always reset data lists before loading to prevent old session data mixing in
+    #clears snake 1 stat lists
+    data_score.clear()
+    data_episode.clear()
+    data_reward.clear()
+    data_length.clear()
+    #clears snake 2 stat lists
+    data_score2.clear()
+    data_episode2.clear()
+    data_reward2.clear()
+    data_length2.clear()
 
-    #load snake 2 data
-    elif game_mode == 2:
-        global q2_table, epsilon2, episode_number2, data_score2, data_episode2, data_reward2, data_length2, astar_bias2
-        if not os.path.exists('snake2_save.json'):
-            print("[!] Snake 2 save data does not exist")
-        else:
-            with open('snake2_save.json', 'r') as f:
-                save_bundle2 = json.load(f)
-            for k, v in save_bundle2['q_table'].items():
-                q2_table[ast.literal_eval(k)] = v
-            epsilon2 = save_bundle2["epsilon"]
-            astar_bias2 = save_bundle2["astar_bias"]
-            episode_number2 = save_bundle2["episode_number"]
-            data_score2 = save_bundle2["data_score"]
-            data_episode2 = save_bundle2["data_episode"]
-            data_reward2 = save_bundle2["data_reward"]
-            data_length2 = save_bundle2["data_length"]
-            print("[+] Snake 2 data loaded")
+    if not astar_mode:
+        #load snake 1 data
+        if game_mode == 1 or game_mode == 2:
+            #if a file doesn't exist
+            if not os.path.exists(filename):
+                print("[!] Save data does not exist")
+                return
+            with open(filename, 'r') as f: # reads the file and converts it back into a variable
+                save_bundle = json.load(f)
+            raw_q = save_bundle["q_table"] #pulls out the q table
+            for k, v in raw_q.items(): # loops through and saves the values for each state
+                parsed_key = ast.literal_eval(k)
+                q_table[parsed_key] = v
+            epsilon = save_bundle["epsilon"]
+            astar_bias = save_bundle["astar_bias"]
+            episode_number = save_bundle["episode_number"]
+            data_score = save_bundle["data_score"]
+            data_episode = save_bundle["data_episode"]
+            data_reward = save_bundle["data_reward"]
+            data_length = save_bundle["data_length"]
+            print('[+] Snake 1 data loaded')
 
-    #load snake 3 data
-    elif game_mode == 3:
-        # if a file doesn't exist
-        if not os.path.exists('snake3_save.json'):
-            print("[!] Save data does not exist")
-            return
-        with open('snake3_save.json', 'r') as f:  # reads the file and converts it back into a variable
-            save_bundle = json.load(f)
-        raw_q = save_bundle["q_table"]  # pulls out the q table
-        for k, v in raw_q.items():  # loops through and saves the values for each state
-            parsed_key = ast.literal_eval(k)
-            q_table[parsed_key] = v
-        epsilon = save_bundle["epsilon"]
-        astar_bias = save_bundle["astar_bias"]
-        episode_number = save_bundle["episode_number"]
-        data_score = save_bundle["data_score"]
-        data_episode = save_bundle["data_episode"]
-        data_reward = save_bundle["data_reward"]
-        data_length = save_bundle["data_length"]
-        print('[+] Snake 1 data loaded')
+        #load snake 2 data
+        if game_mode == 2:
+            if not os.path.exists('snake2_save.json'):
+                print("[!] Snake 2 save data does not exist")
+            else:
+                with open('snake2_save.json', 'r') as f:
+                    save_bundle2 = json.load(f)
+                for k, v in save_bundle2['q_table'].items():
+                    q2_table[ast.literal_eval(k)] = v
+                epsilon2 = save_bundle2["epsilon"]
+                astar_bias2 = save_bundle2["astar_bias"]
+                episode_number2 = save_bundle2["episode_number"]
+                data_score2 = save_bundle2["data_score"]
+                data_episode2 = save_bundle2["data_episode"]
+                data_reward2 = save_bundle2["data_reward"]
+                data_length2 = save_bundle2["data_length"]
+                print("[+] Snake 2 data loaded")
+
+        #load snake 3 data
+        if game_mode == 3:
+            # if a file doesn't exist
+            if not os.path.exists('snake3_save.json'):
+                print("[!] Save data does not exist")
+                return
+            with open('snake3_save.json', 'r') as f:  # reads the file and converts it back into a variable
+                save_bundle = json.load(f)
+            raw_q = save_bundle["q_table"]  # pulls out the q table
+            for k, v in raw_q.items():  # loops through and saves the values for each state
+                parsed_key = ast.literal_eval(k)
+                q_table[parsed_key] = v
+            epsilon = save_bundle["epsilon"]
+            astar_bias = save_bundle["astar_bias"]
+            episode_number = save_bundle["episode_number"]
+            data_score = save_bundle["data_score"]
+            data_episode = save_bundle["data_episode"]
+            data_reward = save_bundle["data_reward"]
+            data_length = save_bundle["data_length"]
+            print('[+] Snake 3 data loaded')
+
+        # load snake 4 data
+        if game_mode == 4:
+            if not os.path.exists('snake4_save.json'):
+                print("[!] Snake 4 save data does not exist")
+            else:
+                with open('snake4_save.json', 'r') as f:
+                    save_bundle2 = json.load(f)
+                for k, v in save_bundle2['q_table'].items():
+                    q2_table[ast.literal_eval(k)] = v
+                epsilon2 = save_bundle2["epsilon"]
+                astar_bias2 = save_bundle2["astar_bias"]
+                episode_number2 = save_bundle2["episode_number"]
+                data_score2 = save_bundle2["data_score"]
+                data_episode2 = save_bundle2["data_episode"]
+                data_reward2 = save_bundle2["data_reward"]
+                data_length2 = save_bundle2["data_length"]
+                print("[+] Snake 4 data loaded")
+    else:
+        if game_mode == 1:
+            # if a file doesn't exist
+            if not os.path.exists("snake_save_astar.json"):
+                print("[!] Save data does not exist")
+                return
+            with open("snake_save_astar.json", 'r') as f:  # reads the file and converts it back into a variable
+                save_bundle = json.load(f)
+            episode_number = save_bundle["episode_number"]
+            data_score = save_bundle["data_score"]
+            data_episode = save_bundle["data_episode"]
+            data_reward = save_bundle["data_reward"]
+            data_length = save_bundle["data_length"]
+            print('[+] Snake 1* data loaded')
+
+        # load snake 2 data
+        if game_mode == 2:
+            if not os.path.exists('snake2_save_astar.json'):
+                print("[!] Snake 2 save data does not exist")
+            else:
+                with open('snake2_save_astar.json', 'r') as f:
+                    save_bundle2 = json.load(f)
+                episode_number2 = save_bundle2["episode_number"]
+                data_score2 = save_bundle2["data_score"]
+                data_episode2 = save_bundle2["data_episode"]
+                data_reward2 = save_bundle2["data_reward"]
+                data_length2 = save_bundle2["data_length"]
+                print("[+] Snake 2* data loaded")
+
+        # load snake 3 data
+        if game_mode == 3:
+            # if a file doesn't exist
+            if not os.path.exists('snake3_save_astar.json'):
+                print("[!] Save data does not exist")
+                return
+            with open('snake3_save_astar.json', 'r') as f:  # reads the file and converts it back into a variable
+                save_bundle = json.load(f)
+            episode_number = save_bundle["episode_number"]
+            data_score = save_bundle["data_score"]
+            data_episode = save_bundle["data_episode"]
+            data_reward = save_bundle["data_reward"]
+            data_length = save_bundle["data_length"]
+            print('[+] Snake 3* data loaded')
+
+        if game_mode == 4:
+            #loads the A* snake
+            if not os.path.exists('snake4_save_astar.json'):
+                print("[!] Snake 4 save data does not exist")
+            else:
+                with open('snake4_save_astar.json', 'r') as f:
+                    save_bundle2 = json.load(f)
+                episode_number2 = save_bundle2["episode_number"]
+                data_score2 = save_bundle2["data_score"]
+                data_episode2 = save_bundle2["data_episode"]
+                data_reward2 = save_bundle2["data_reward"]
+                data_length2 = save_bundle2["data_length"]
+                print("[+] Snake 4* data loaded")
+
+            #loads the Q Learning snake
+            if not os.path.exists("snake2_save.json"):
+                print("[!] Save data does not exist")
+                return
+            with open("snake2_save.json", 'r') as f:  # reads the file and converts it back into a variable
+                save_bundle = json.load(f)
+            raw_q = save_bundle["q_table"]  # pulls out the q table
+            for k, v in raw_q.items():  # loops through and saves the values for each state
+                parsed_key = ast.literal_eval(k)
+                q_table[parsed_key] = v
+            epsilon = save_bundle["epsilon"]
+            astar_bias = save_bundle["astar_bias"]
+            episode_number = save_bundle["episode_number"]
+            data_score = save_bundle["data_score"]
+            data_episode = save_bundle["data_episode"]
+            data_reward = save_bundle["data_reward"]
+            data_length = save_bundle["data_length"]
+            print('[+] Snake 4 data loaded')
 
 #helper method to plot the data
 def plot_data(episodes, scores, rewards, lengths, title_prefix):
-    # Reusable chart function that works for either snake's data arrays
-    def regression(x_data, y_data):
-        # Computes a simple linear regression line for a scatter plot
-        n = len(x_data)
-        xbar = sum(x_data) / n
-        ybar = sum(y_data) / n
-        numer = sum(xi * yi for xi, yi in zip(x_data, y_data)) - n * xbar * ybar
-        denum = sum(xi ** 2 for xi in x_data) - n * xbar ** 2
-        if denum > 0:
-            b = numer / denum
-            a = ybar - b * xbar
-            return [a + b * xi for xi in x_data]
-        return None
 
-    # Score over time
-    plt.scatter(episodes, scores, label='Score Over Time', color='green', marker='o')
-    fit = regression(episodes, scores)
-    if fit: plt.plot(episodes, fit)
-    plt.xlabel('Episode');
-    plt.ylabel('Score');
-    plt.title(f'{title_prefix} Score Over Time')
-    plt.legend();
+    # --- Chart 1: Score over Episode as a 2D histogram ---
+    plt.figure(figsize=(10, 5))
+    plt.hist2d(episodes, scores, bins=[50, 20], cmap='YlOrRd')
+    plt.colorbar(label='Episode Count')
+    plt.xlabel('Episode')
+    plt.ylabel('Score')
+    plt.title(f'{title_prefix} Score Distribution Over Training')
+
+    # rolling average line shows the general trend
+    if len(episodes) >= 50:
+        window = max(1, len(episodes) // 50)
+        avg_scores = [sum(scores[i:i + window]) / window for i in range(0, len(scores) - window, window)]
+        avg_eps = [episodes[i + window // 2] for i in range(0, len(episodes) - window, window)]
+        plt.plot(avg_eps, avg_scores, color='blue', linewidth=2, label='Rolling Average')
+
+    # running best line — tracks the highest score achieved so far at each episode
+    running_best = []
+    current_best = 0
+    for s in scores:
+        # if this episode beat the record, update it; otherwise carry the old record forward
+        if s > current_best:
+            current_best = s
+        running_best.append(current_best)  # always appends current record, so line never drops
+    plt.plot(episodes, running_best, color='green', linewidth=2, linestyle='--', label='Best Score So Far')
+
+    plt.legend()
+    plt.tight_layout()
     plt.show()
 
-    # Reward over time
-    plt.scatter(episodes, rewards, label='Reward Over Time', color='red', marker='o')
-    fit = regression(episodes, rewards)
-    if fit: plt.plot(episodes, fit)
-    plt.xlabel('Episode');
-    plt.ylabel('Reward');
-    plt.title(f'{title_prefix} Reward Over Time')
-    plt.legend();
+    # --- Chart 2: Score Efficiency (Score per Episode Length) over Episodes ---
+    import numpy as np
+
+    # calculate efficiency as score divided by length for each episode
+    # guards against division by zero if length is somehow 0
+    efficiency = [s / l if l > 0 else 0 for s, l in zip(scores, lengths)]
+    # s is the score for that episode, l is how many steps it took
+
+    plt.figure(figsize=(10, 5))
+    # hexbin plots density — darker cells mean more episodes landed in that region
+    hb = plt.hexbin(episodes, efficiency, gridsize=40, cmap='Blues')
+    # hb is the hexbin object, needed to attach the colorbar
+    plt.colorbar(hb, label='Episode Count')
+    plt.xlabel('Episode')
+    plt.ylabel('Score / Steps')
+    plt.title(f'{title_prefix} Efficiency (Score per Step) Over Training')
+
+    # rolling average so you can see the trend through the noise
+    if len(episodes) >= 50:
+        window = max(1, len(episodes) // 50)
+        # calculates the average efficiency over each window of episodes
+        avg_eff = [sum(efficiency[i:i + window]) / window for i in range(0, len(efficiency) - window, window)]
+        # finds the midpoint episode number for each window to use as the x position
+        avg_eps = [episodes[i + window // 2] for i in range(0, len(episodes) - window, window)]
+        plt.plot(avg_eps, avg_eff, color='orange', linewidth=2, label='Rolling Average')
+        plt.legend()
+
+    # clip y-axis to ignore extreme outliers
+    y_low = np.percentile(efficiency, 5)
+    y_high = np.percentile(efficiency, 95)
+    padding = (y_high - y_low) * 0.1
+    if padding == 0:
+        padding = 0.001  # fallback for early training when all efficiency values are identical
+    plt.ylim(y_low - padding, y_high + padding)
+
+    plt.tight_layout()
     plt.show()
 
-    # Reward over score
-    plt.scatter(scores, rewards, label='Reward Over Score', color='blue', marker='o')
-    fit = regression(scores, rewards)
-    if fit: plt.plot(scores, fit)
-    plt.xlabel('Score');
-    plt.ylabel('Reward');
-    plt.title(f'{title_prefix} Reward Over Score')
-    plt.legend();
-    plt.show()
-
-    # Reward over episode length
-    plt.scatter(lengths, rewards, label='Reward Over Episode Length', color='yellow', marker='o')
-    fit = regression(lengths, rewards)
-    if fit: plt.plot(lengths, fit)
-    plt.xlabel('Episode Length');
-    plt.ylabel('Reward')
-    plt.title(f'{title_prefix} Reward Over Episode Length')
-    plt.legend();
-    plt.show()
-
-    # Time to eat (only episodes where score > 0 are meaningful here)
-    clean_ep = [episodes[i] for i in range(len(episodes)) if scores[i] > 0]
-    avg_times = [lengths[i] / scores[i] for i in range(len(scores)) if scores[i] > 0]
-    if clean_ep:
-        plt.scatter(clean_ep, avg_times, label='Time to Eat Over Episode', color='green', marker='o')
-        fit = regression(clean_ep, avg_times)
-        if fit: plt.plot(clean_ep, fit)
-        plt.xlabel('Episode');
-        plt.ylabel('Time to Eat')
-        plt.title(f'{title_prefix} Scoring Speed Over Episode')
-        plt.legend();
-        plt.show()
 
 #function that spawns the obstacles for the snake in 10% of the space randomely
 def spawn_obstacles(frame_x, frame_y, snake_body):
@@ -643,11 +870,20 @@ def spawn_obstacles(frame_x, frame_y, snake_body):
 
 
 # Main logic
+astar_menu()
 start_menu()
 load_data()
 
 if game_mode == 3: #spawn the obstacles in game mode 3
     s1_obstacles = spawn_obstacles(frame_size_x, frame_size_y, snake_body)
+
+if headless:
+    game_window.fill(black)
+    headless_line = font.render('Headless Mode', True, white)
+    headless_x = (frame_size_x - headless_line.get_width()) // 2
+    headless_y = (frame_size_y // 2) - 20
+    game_window.blit(headless_line, (headless_x, headless_y))
+    pygame.display.flip()
 
 while True:
     for event in pygame.event.get():
@@ -658,13 +894,18 @@ while True:
             if game_mode == 1 and data_episode:
                 plot_data(data_episode, data_score, data_reward, data_length, 'Snake 1')
             elif game_mode == 2 and data_episode2:
-                plot_data(data_episode2, data_score2, data_reward2, data_length2, 'Snake 2')
-            elif game_mode == 3 and data_score:
+                if not astar_mode:
+                    plot_data(data_episode2, data_score2, data_reward2, data_length2, 'Snake 2')
+                else:
+                    plot_data(data_episode2, data_score2, data_reward2, data_length2, 'A* vs A*')
+            elif game_mode == 3 and data_episode:
                 plot_data(data_episode, data_score, data_reward, data_length, 'Snake 3')
+            elif game_mode == 4 and data_episode2:
+                plot_data(data_episode2, data_score2, data_reward2, data_length2, 'Q-Learning vs A*')
             sys.exit()
 
 
-    if game_mode == 2: #snake 2 body is an obstacle in game mode 2
+    if game_mode == 2 or game_mode == 4: #snake 2 body is an obstacle in game mode 2
         s1_obstacles = snake2_body
     elif game_mode == 1:
         s1_obstacles = []
@@ -675,17 +916,25 @@ while True:
     #runs A* on snake 1 to the food
     path1 = astar(snake_body, food_pos, frame_size_x, frame_size_y, s1_obstacles)
     astar_rec1 = get_astar_rec(path1, snake_pos, direction)
+    dist_before1, dist_after1 = 0, 0
 
-    #pick snake 1's action
-    action1 = choose_action(state1, q_table, epsilon, astar_rec1, astar_bias)
-    #gets the absolute direction from the relative direction
-    direction = apply_action(action1, direction)
-    #calculate the distance of the snake from the food before the snake moves
-    dist_before1 = abs(snake_pos[0] - food_pos[0]) + abs(snake_pos[1] - food_pos[1])
-    #move snake 1
-    snake_pos = move_snake(snake_pos, direction)
-    #calculate the distance of the snake to the food after the snake moves
-    dist_after1 = abs(snake_pos[0] - food_pos[0]) + abs(snake_pos[1] - food_pos[1])
+    #if in A* mode, only need to run the A* algorithm
+    if (astar_mode and not game_mode == 4) or (not astar_mode and game_mode == 4):
+        action1 = astar_rec1
+        direction = apply_action(action1, direction)
+        # move snake 1
+        snake_pos = move_snake(snake_pos, direction)
+    else:
+        #pick snake 1's action
+        action1 = choose_action(state1, q_table, epsilon, astar_rec1, astar_bias)
+        #gets the absolute direction from the relative direction
+        direction = apply_action(action1, direction)
+        #calculate the distance of the snake from the food before the snake moves
+        dist_before1 = abs(snake_pos[0] - food_pos[0]) + abs(snake_pos[1] - food_pos[1])
+        #move snake 1
+        snake_pos = move_snake(snake_pos, direction)
+        #calculate the distance of the snake to the food after the snake moves
+        dist_after1 = abs(snake_pos[0] - food_pos[0]) + abs(snake_pos[1] - food_pos[1])
 
     #snake growing/eating food
     snake_body.insert(0, list(snake_pos))
@@ -706,30 +955,31 @@ while True:
     s1_hit_s2 = game_mode == 2 and any(snake_pos[0] == b[0] and snake_pos[1] == b[1] for b in snake2_body)
     s1_spiral = steps_since_food1 >= max_steps_without_food
     s1_hit_obst = game_mode == 3 and any(snake_pos == block for block in s1_obstacles)
-    # assigning reward based off of boolean values
-    if s1_spiral:
-        steps_since_food1 = 0
-        reward1 = spiral_penalty
-    elif s1_hit_wall or s1_hit_self or s1_hit_s2 or s1_hit_obst:
-        reward1 = death
-    elif s1_ate:
-        reward1 = got_food
-    else:
-        distance_reward1 = food_distance if dist_after1 < dist_before1 else -food_distance
-        reward1 = move_no_food + distance_reward1
+    if not astar_mode or game_mode == 4:
+        # assigning reward based off of boolean values
+        if s1_spiral:
+            steps_since_food1 = 0
+            reward1 = spiral_penalty
+        elif s1_hit_wall or s1_hit_self or s1_hit_s2 or s1_hit_obst:
+            reward1 = death
+        elif s1_ate:
+            reward1 = got_food
+        else:
+            distance_reward1 = food_distance if dist_after1 < dist_before1 else -food_distance
+            reward1 = move_no_food + distance_reward1
 
-    if game_mode == 1 or game_mode == 3:
-        #get the next state using the bellman equation
-        next_state1 = get_state(snake_pos, snake_body, direction, food_pos, s1_obstacles)
-        #update snake 1's q table
-        update_q_table(state1, action1, reward1, next_state1, q_table)
-        total_reward += reward1
+        if game_mode == 1 or game_mode == 3:
+            #get the next state using the bellman equation
+            next_state1 = get_state(snake_pos, snake_body, direction, food_pos, s1_obstacles)
+            #update snake 1's q table
+            update_q_table(state1, action1, reward1, next_state1, q_table)
+            total_reward += reward1
 
     #snake 1 death check
     s1_dead = s1_hit_wall or s1_hit_self or s1_hit_s2 or s1_spiral or s1_hit_obst
     if (game_mode == 1 or game_mode == 3) and s1_dead:
         game_over()
-    elif game_mode == 2 and s1_dead:
+    elif (game_mode == 2 or game_mode == 4) and s1_dead:
         #in 2 snake game mode, snake 1 gets respawned
         #Defines several candidate spawn positions spread around the board as options for snake 1 so doesn't spawn on top of snake 2
         candidates = [
@@ -762,7 +1012,7 @@ while True:
         print(f"Snake 1 respawned at {snake_pos}")
 
     #code to control the second snake
-    if game_mode == 2:
+    if game_mode == 2 or game_mode == 4:
         #gets snake 2's state, and passes snake 1's body as the extra obstacle
         state2 = get_state(snake2_pos, snake2_body, direction2, food_pos, snake_body)
 
@@ -770,17 +1020,25 @@ while True:
         path2 = astar(snake2_body, food_pos, frame_size_x, frame_size_y, snake_body)
         astar_rec2 = get_astar_rec(path2, snake2_pos, direction2)
 
-        #pick snake 2's action
-        action2 = choose_action(state2, q2_table, epsilon2, astar_rec2, astar_bias2)
-        #converts the relative action to the absolute direction
-        direction2 = apply_action(action2, direction2)
+        dist_before2, dist_after2 = 0,0
+        if astar_mode:
+            action2 = astar_rec2
+            # converts the relative action to the absolute direction
+            direction2 = apply_action(action2, direction2)
+            # move snake 2
+            snake2_pos = move_snake(snake2_pos, direction2)
+        else:
+            #pick snake 2's action
+            action2 = choose_action(state2, q2_table, epsilon2, astar_rec2, astar_bias2)
+            #converts the relative action to the absolute direction
+            direction2 = apply_action(action2, direction2)
 
-        # calculate the distance of the snake from the food before the snake moves
-        dist_before2 = abs(snake2_pos[0] - food_pos[0]) + abs(snake2_pos[1] - food_pos[1])
-        # move snake 2
-        snake2_pos = move_snake(snake2_pos, direction2)
-        # calculate the distance of the snake to the food after the snake moves
-        dist_after2 = abs(snake2_pos[0] - food_pos[0]) + abs(snake2_pos[1] - food_pos[1])
+            # calculate the distance of the snake from the food before the snake moves
+            dist_before2 = abs(snake2_pos[0] - food_pos[0]) + abs(snake2_pos[1] - food_pos[1])
+            # move snake 2
+            snake2_pos = move_snake(snake2_pos, direction2)
+            # calculate the distance of the snake to the food after the snake moves
+            dist_after2 = abs(snake2_pos[0] - food_pos[0]) + abs(snake2_pos[1] - food_pos[1])
 
         #grow snake 2 body and check for food
         snake2_body.insert(0, list(snake2_pos))
@@ -799,22 +1057,23 @@ while True:
         s2_hit_self = any(snake2_pos[0] == b[0] and snake2_pos[1] == b[1] for b in snake2_body[1:])
         s2_hit_s1 = any(snake2_pos[0] == b[0] and snake2_pos[1] == b[1] for b in snake_body)
         s2_spiral = steps_since_food2 >= max_steps_without_food
-        if s2_spiral:
-            steps_since_food2 = 0
-            reward2 = spiral_penalty
-        elif s2_hit_wall or s2_hit_self or s2_hit_s1:
-            reward2 = death
-        elif s2_ate:
-            reward2 = got_food
-        else:
-            distance_reward2 = food_distance if dist_after2 < dist_before2 else -food_distance
-            reward2 = move_no_food + distance_reward2
+        if not astar_mode:
+            if s2_spiral:
+                steps_since_food2 = 0
+                reward2 = spiral_penalty
+            elif s2_hit_wall or s2_hit_self or s2_hit_s1:
+                reward2 = death
+            elif s2_ate:
+                reward2 = got_food
+            else:
+                distance_reward2 = food_distance if dist_after2 < dist_before2 else -food_distance
+                reward2 = move_no_food + distance_reward2
 
-        #get snake 2's next state for the bellman equeation
-        next_state2 = get_state(snake2_pos, snake2_body, direction2, food_pos, snake_body)
-        #update q table
-        update_q_table(state2, action2, reward2, next_state2, q2_table)
-        total_reward2 += reward2
+            #get snake 2's next state for the bellman equeation
+            next_state2 = get_state(snake2_pos, snake2_body, direction2, food_pos, snake_body)
+            #update q table
+            update_q_table(state2, action2, reward2, next_state2, q2_table)
+            total_reward2 += reward2
 
         #snake 2 dying will trigger the end of the episode and reset
         if s2_hit_wall or s2_hit_self or s2_hit_s1 or s2_spiral:
@@ -829,27 +1088,27 @@ while True:
 
     game_length += 1
 
-    #update the window for the next frame
-    # GFX
-    game_window.fill(black)
-    for pos in snake_body: #draws snake 1
-        pygame.draw.rect(game_window, green, pygame.Rect(pos[0], pos[1], 10, 10))
+    if not headless:
+        #update the window for the next frame
+        # GFX
+        game_window.fill(black)
+        for pos in snake_body: #draws snake 1
+            pygame.draw.rect(game_window, green, pygame.Rect(pos[0], pos[1], 10, 10))
 
-    if game_mode == 2:
-        for pos in snake2_body: #draws snake 2
-            pygame.draw.rect(game_window, blue, pygame.Rect(pos[0], pos[1], 10, 10))
+        if game_mode == 2 or game_mode == 4:
+            for pos in snake2_body: #draws snake 2
+                pygame.draw.rect(game_window, blue, pygame.Rect(pos[0], pos[1], 10, 10))
 
-    if game_mode == 3:
-        for pos in s1_obstacles: #draws the obstacles
-            pygame.draw.rect(game_window, white, pygame.Rect(pos[0], pos[1], 10, 10))
+        if game_mode == 3:
+            for pos in s1_obstacles: #draws the obstacles
+                pygame.draw.rect(game_window, white, pygame.Rect(pos[0], pos[1], 10, 10))
 
-    # draws the apple
-    pygame.draw.rect(game_window, red, pygame.Rect(food_pos[0], food_pos[1], 10, 10))
+        # draws the apple
+        pygame.draw.rect(game_window, red, pygame.Rect(food_pos[0], food_pos[1], 10, 10))
 
-
-
-    show_score(1, white, 'consolas', 20)
-    # Refresh game screen
-    pygame.display.update()
+        #draws score
+        show_score(1, white, 'consolas', 20)
+        # Refresh game screen
+        pygame.display.update()
     # Refresh rate
-    fps_controller.tick(difficulty)
+    fps_controller.tick(0 if headless else difficulty)
